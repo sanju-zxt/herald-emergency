@@ -7,6 +7,8 @@ import { tts } from "@/lib/tts";
 import { renderGraph, buildGraph, hitTest, type GNode } from "@/lib/graph";
 import { CoPilotChat } from "@/components/CoPilotChat";
 import { StatsBar } from "@/components/StatsBar";
+import LiveTicker from "@/components/LiveTicker";
+import HowItWorks from "@/components/HowItWorks";
 
 type Phase = "idle" | "working" | "done" | "error";
 
@@ -69,6 +71,16 @@ export default function Home() {
 
   useEffect(() => {
     setBoard(loadBoard());
+  }, []);
+
+  // Auto-run the flagship flood demo so the page is never a static landing —
+  // judges see HERALD already analyzing an incident the moment they arrive.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (phase === "idle") runDemo(1);
+    }, 750);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -286,6 +298,11 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Live Incident Ticker */}
+      <div className="wrap">
+        <LiveTicker />
+      </div>
+
       {/* Stats Dashboard */}
       <div className="wrap">
         <StatsBar board={board} currentAction={action} />
@@ -318,6 +335,11 @@ export default function Home() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* How It Works Pipeline */}
+      <div className="wrap">
+        <HowItWorks />
       </div>
 
       <section className="bridge" id="bridge">
