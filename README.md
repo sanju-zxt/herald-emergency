@@ -99,9 +99,6 @@ npm install
 # Start dev server
 npm run dev
 
-# (Optional) Enable live Gemini analysis
-echo "GEMINI_API_KEY=your-key-here" > .env.local
-
 # Type-check
 npm run typecheck
 
