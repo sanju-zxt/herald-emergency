@@ -770,9 +770,39 @@ function MapView({ action }: { action: Action }) {
   );
 }
 
+/* ── Confidence Ring Gauge (SVG, animated) ── */
+function ConfidenceRing({ pct, size = 56 }: { pct: number; size?: number }) {
+  const r = size / 2 - 5;
+  const c = 2 * Math.PI * r;
+  const filled = c * Math.min(Math.max(pct, 0), 100) / 100;
+  const hue = pct >= 70 ? "#34d399" : pct >= 45 ? "#fbbf24" : "#f87171";
+  return (
+    <div className="conf-ring" style={{ width: size, height: size }} role="img" aria-label={`Confidence ${pct} percent`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="5" />
+        <circle
+          className="conf-ring-fill"
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={hue}
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c - filled}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      <b>{pct}<small>%</small></b>
+    </div>
+  );
+}
+
 /* ── Action Card (existing, kept) ── */
 function ActionCard({ action, mode }: { action: Action; mode: "gemini" | "demo" }) {
   const [speaking, setSpeaking] = useState(false);
+  const [approval, setApproval] = useState<string | null>(null);
 
   function speak() {
     if (speaking) {
@@ -799,7 +829,10 @@ function ActionCard({ action, mode }: { action: Action; mode: "gemini" | "demo" 
           <div className="card-id">{action.id}</div>
           <div className="card-scenario">{action.scenario}</div>
         </div>
-        <span className={`sev ${action.severity}`}>{action.severity}</span>
+        <div className="card-badges">
+          <ConfidenceRing pct={pct} />
+          <span className={`sev ${action.severity}`}>{action.severity}</span>
+        </div>
       </div>
 
       <p className="card-summary">{action.summary}</p>
@@ -867,6 +900,18 @@ function ActionCard({ action, mode }: { action: Action; mode: "gemini" | "demo" 
         <button className="btn btn-ghost btn-sm" onClick={() => downloadJson(action)}>
           ⤓ Export JSON
         </button>
+        <button
+          className="btn btn-appr btn-sm"
+          onClick={() => setApproval(approval === "approved" ? null : "approved")}
+          aria-pressed={approval === "approved"}
+        >
+          {approval === "approved" ? "✔ Approved" : "✓ Approve"}
+        </button>
+        {approval === "approved" && (
+          <span className="approval-stamp" role="status">
+            ✔ VERIFIED BY OPERATOR
+          </span>
+        )}
       </div>
     </div>
   );

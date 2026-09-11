@@ -512,6 +512,21 @@ textarea:focus {
 .sev.LOW { color: #cdf4e3; background: rgba(61, 220, 151, 0.12); border-color: rgba(61, 220, 151, 0.4); }
 .sev.UNKNOWN { color: var(--text-dim); background: var(--bg-3); border-color: var(--line); }
 
+.card-badges { display: flex; align-items: center; gap: 10px; }
+.conf-ring { position: relative; flex: 0 0 auto; display: grid; place-items: center; }
+.conf-ring svg { position: absolute; inset: 0; transform: rotate(90deg); }
+.conf-ring-fill { transition: stroke-dashoffset 1s cubic-bezier(.22,1,.36,1); }
+.conf-ring b { font-size: 0.78rem; font-weight: 800; letter-spacing: -0.02em; }
+.conf-ring small { font-size: 0.56rem; opacity: 0.6; margin-left: 1px; }
+.approval-stamp {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--good); font-weight: 800; font-size: 0.78rem;
+  letter-spacing: 0.08em; padding: 6px 10px; border: 1px solid rgba(61,220,151,.45);
+  background: rgba(61, 220, 151, 0.1); border-radius: 8px;
+  animation: stamp-in 0.35s cubic-bezier(.22,1,.36,1);
+}
+@keyframes stamp-in { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
 .card-head {
   display: flex;
   align-items: flex-start;
