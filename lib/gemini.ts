@@ -13,8 +13,9 @@ function client(): GoogleGenAI {
 
 export const MAIN_MODELS = [
   "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-2.5-flash-lite-preview",
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-pro",
+  "gemini-3-flash-preview",
 ] as const;
 
 export interface InferenceInput {
@@ -112,10 +113,10 @@ export async function infer(input: InferenceInput): Promise<unknown> {
   const genai = client();
   const models = MAIN_MODELS;
 
-  const callModel = async (model: string) => {
+  const callModel = async (model: string, partsInput: InferenceInput) => {
     const res = await genai.models.generateContent({
       model,
-      contents: buildParts(input),
+      contents: buildParts(partsInput),
       config: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 2048 },
     });
     const text = res.text;
@@ -125,17 +126,18 @@ export async function infer(input: InferenceInput): Promise<unknown> {
 
   const callModels = async (withAudio: boolean): Promise<unknown> => {
     const localInput = withAudio ? input : { ...input, audio: undefined };
-    let lastErr: unknown = new Error("no model usable");
+    const failures: string[] = [];
     for (const m of models) {
       try {
-        return await callModel(m);
+        return await callModel(m, localInput);
       } catch (e) {
-        lastErr = e;
+        const msg = e instanceof Error ? e.message : String(e);
+        failures.push(`[${m}] ${msg}`);
         // don't sink time retrying every model if the key is bad
-        if (e instanceof Error && /api.?key|invalid/i.test(e.message)) throw e;
+        if (/api.?key|invalid/i.test(msg)) throw e;
       }
     }
-    throw lastErr instanceof Error ? new Error(`All Gemini models failed. Last: ${lastErr.message}`) : lastErr;
+    throw new Error(`All Gemini models failed. ${failures.join(" | ")}`);
   };
 
   // Primary path: single multimodal call with everything inline (fastest — "instant").
@@ -151,11 +153,3 @@ export async function infer(input: InferenceInput): Promise<unknown> {
   }
 }
 
-export async function transcribeAudio(audio: { mime: string; b64: string }): Promise<string> {
-  const genai = client();
-  const res = await genai.models.generateContent({
-    model: "gemini-3.5-transcribe",
-    contents: [{ role: "user", parts: [{ inlineData: { mimeType: audio.mime, data: audio.b64 }, text: undefined }] }],
-  });
-  return (res.text ?? "").trim();
-}
