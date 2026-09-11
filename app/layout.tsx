@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   applicationName: "HERALD",
   keywords: ["emergency", "intelligence", "gemini", "disaster response", "verified actions"],
   authors: [{ name: "HERALD" }],
+  icons: { icon: "/logo.svg" },
   openGraph: {
     title: "HERALD — Emergency Intelligence Platform",
     description: "The gap between what we know and what first responders do is measured in minutes. HERALD closes it in seconds.",

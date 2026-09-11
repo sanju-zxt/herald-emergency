@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { demoAction, demoActionVariant, getAllScenarios } from "@/lib/demo";
+import { demoAction, getAllScenarios } from "@/lib/demo";
 import { infer } from "@/lib/gemini";
 import { MAX_TEXT_CHARS, checkRateLimit, classifyPort } from "@/lib/limits";
 import { parseActionSafe } from "@/lib/schema";
@@ -101,8 +101,9 @@ export async function POST(req: NextRequest) {
       }
     } else {
       const scenarioId = url.searchParams.get("scenario");
-      const scenarioIdx = scenarioId ? parseInt(scenarioId, 10) : (forceDemo ? 1 : 0);
-      parsed = { ok: true as const, value: forceDemo ? demoActionVariant(scenarioIdx) : demoAction(scenarioIdx) };
+      const reqIdx = scenarioId ? parseInt(scenarioId, 10) : 1;
+      const scenarioIdx = Number.isFinite(reqIdx) && reqIdx >= 1 ? reqIdx : 1;
+      parsed = { ok: true as const, value: demoAction(scenarioIdx) };
       mode = "demo";
     }
 

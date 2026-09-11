@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Action, GraphNode, GraphEdge } from "@/lib/schema";
 import { loadBoard, saveToBoard, updateBoardStatus, downloadJson } from "@/lib/store";
 import { tts } from "@/lib/tts";
-import { renderGraph, buildGraph, hitTest, type GNode } from "@/lib/graph";
+import { renderLayout, simulateGraph, hitTest, type GNode } from "@/lib/graph";
 import { CoPilotChat } from "@/components/CoPilotChat";
 import { StatsBar } from "@/components/StatsBar";
 import LiveTicker from "@/components/LiveTicker";
@@ -66,7 +66,7 @@ export default function Home() {
   const [editSummary, setEditSummary] = useState("");
   const [drag, setDrag] = useState(false);
   const [selectedDemo, setSelectedDemo] = useState<number | null>(null);
-  const [activeView, setActiveView] = useState<"card" | "graph" | "timeline" | "copilot">("card");
+  const [activeView, setActiveView] = useState<"card" | "graph" | "timeline" | "map" | "copilot">("card");
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
@@ -262,7 +262,7 @@ export default function Home() {
       <header className="site-header">
         <div className="wrap">
           <a className="brand" href="#top">
-            <span className="brand-mark" aria-hidden="true">H</span>
+            <img className="brand-mark" src="/logo.svg" alt="" width={28} height={28} />
             HERALD
           </a>
           <div className="header-right">
@@ -356,6 +356,7 @@ export default function Home() {
               {DEMO_SCENARIOS.map((s) => (
                 <button
                   key={s.id}
+                  aria-pressed={selectedDemo === parseInt(s.id)}
                   className={`scenario-card ${selectedDemo === parseInt(s.id) ? "active" : ""}`}
                   onClick={() => runDemo(parseInt(s.id))}
                   disabled={phase === "working"}
@@ -481,26 +482,42 @@ export default function Home() {
                 {phase === "done" && action && (
                   <>
                     {/* View tabs */}
-                    <div className="view-tabs">
+                    <div className="view-tabs" role="tablist" aria-label="Incident views">
                       <button
+                        role="tab"
+                        aria-selected={activeView === "card"}
                         className={`tab ${activeView === "card" ? "active" : ""}`}
                         onClick={() => setActiveView("card")}
                       >
                         📋 Action
                       </button>
                       <button
+                        role="tab"
+                        aria-selected={activeView === "graph"}
                         className={`tab ${activeView === "graph" ? "active" : ""}`}
                         onClick={() => setActiveView("graph")}
                       >
                         🕸️ Graph
                       </button>
                       <button
+                        role="tab"
+                        aria-selected={activeView === "timeline"}
                         className={`tab ${activeView === "timeline" ? "active" : ""}`}
                         onClick={() => setActiveView("timeline")}
                       >
                         📊 Timeline
                       </button>
                       <button
+                        role="tab"
+                        aria-selected={activeView === "map"}
+                        className={`tab ${activeView === "map" ? "active" : ""}`}
+                        onClick={() => setActiveView("map")}
+                      >
+                        🗺️ Map
+                      </button>
+                      <button
+                        role="tab"
+                        aria-selected={activeView === "copilot"}
                         className={`tab ${activeView === "copilot" ? "active" : ""}`}
                         onClick={() => setActiveView("copilot")}
                       >
@@ -510,6 +527,7 @@ export default function Home() {
                     {activeView === "card" && <ActionCard action={action} mode={resultMode} />}
                     {activeView === "graph" && <GraphView action={action} />}
                     {activeView === "timeline" && <TimelineView action={action} />}
+                    {activeView === "map" && <MapView action={action} />}
                     {activeView === "copilot" && <CoPilotChat action={action} />}
                   </>
                 )}
@@ -603,7 +621,10 @@ export default function Home() {
 function GraphView({ action }: { action: Action }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Simulated layout is cached: the physics run once per data change; hover only re-applies the draw pass.
   const nodesRef = useRef<GNode[]>([]);
+  const dimsRef = useRef({ width: 0, height: 0 });
+  const edgesRef = useRef<GraphEdge[]>(action.graphData?.edges ?? []);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
   const graphData = action.graphData ?? { nodes: [], edges: [] };
@@ -625,9 +646,21 @@ function GraphView({ action }: { action: Action }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    renderGraph(ctx, graphData, width, height, hoveredNode);
-    nodesRef.current = buildGraph(graphData);
-  }, [graphData, hoveredNode]);
+    // Expensive pass — only when the incident data changes.
+    dimsRef.current = { width, height };
+    edgesRef.current = graphData.edges;
+    nodesRef.current = simulateGraph(graphData, width, height);
+    renderLayout(ctx, nodesRef.current, graphData.edges, width, height, hoveredNode);
+  }, [graphData]);
+
+  // Cheap pass — hover just re-draws the cached layout, no re-simulation.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const { width, height } = dimsRef.current;
+    renderLayout(ctx, nodesRef.current, edgesRef.current, width, height, hoveredNode);
+  }, [hoveredNode]);
 
   function handleMouse(e: React.MouseEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
@@ -642,6 +675,9 @@ function GraphView({ action }: { action: Action }) {
 
   const nodeCount = graphData.nodes.length;
   const edgeCount = graphData.edges.length;
+  const relText = graphData.edges
+    .map((e) => `${graphData.nodes.find((n) => n.id === e.source)?.label ?? e.source} ${e.label ?? "is related to"} ${graphData.nodes.find((n) => n.id === e.target)?.label ?? e.target}`)
+    .join(". ");
 
   return (
     <div className="graph-view">
@@ -650,7 +686,18 @@ function GraphView({ action }: { action: Action }) {
         <span className="graph-stat">{edgeCount} relationships</span>
       </div>
       <div className="graph-container" ref={containerRef}>
-        <canvas ref={canvasRef} onMouseMove={handleMouse} onMouseLeave={() => setHoveredNode(null)} />
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label={`Relationship graph of ${action.scenario}. ${nodeCount} entities and ${edgeCount} relationships.`}
+          aria-description={relText || "No relationships extracted."}
+          tabIndex={0}
+          onMouseMove={handleMouse}
+          onMouseLeave={() => setHoveredNode(null)}
+        />
+        <p className="sr-only">
+          Entities in this incident: {graphData.nodes.map((n) => n.label).join(", ") || "none"}. {relText}
+        </p>
       </div>
       <div className="graph-legend">
         {[
@@ -696,6 +743,29 @@ function TimelineView({ action }: { action: Action }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ── Map View (Google Maps embed — keyless) ── */
+function MapView({ action }: { action: Action }) {
+  const location = action.location?.label ?? action.scenario;
+  const q = encodeURIComponent(location);
+  return (
+    <div className="map-view">
+      <div className="map-header">
+        <span className="graph-stat">📍 {location}</span>
+      </div>
+      <div className="map-embed">
+        <iframe
+          title={`Map showing the incident location: ${location}`}
+          src={`https://maps.google.com/maps?q=${q}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+          loading="lazy"
+          allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+      </div>
+      <p className="map-note">Location extracted by Gemini from the input sources. Visualized with Google Maps.</p>
     </div>
   );
 }
