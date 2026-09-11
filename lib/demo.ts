@@ -260,12 +260,9 @@ const SCENARIOS: Action[] = [
  * never fail — even mid-quota or mid-demo.
  */
 export function demoAction(seed = 1): Action {
-  return SCENARIOS[(seed - 1) % SCENARIOS.length];
-}
-
-/** Slightly varied scenario for repeat demo runs. */
-export function demoActionVariant(n: number): Action {
-  return SCENARIOS[(n - 1) % SCENARIOS.length];
+  const n = SCENARIOS.length;
+  const safe = Number.isFinite(seed) ? Math.floor(seed) : 1;
+  return SCENARIOS[((safe - 1) % n + n) % n];
 }
 
 /** Get all available scenarios for the scenario picker. */

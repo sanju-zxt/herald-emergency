@@ -78,7 +78,7 @@ export function buildParts(input: InferenceInput): Content[] {
   return [{ role: "user", parts }];
 }
 
-function stripJsonFences(raw: string): string {
+export function stripJsonFences(raw: string): string {
   const trimmed = raw.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)```$/i);
   if (fenced) return fenced[1].trim();
@@ -87,7 +87,7 @@ function stripJsonFences(raw: string): string {
   return trimmed;
 }
 
-function tryParse(raw: string): unknown {
+export function tryParse(raw: string): unknown {
   const clean = stripJsonFences(raw);
   try {
     return JSON.parse(clean);

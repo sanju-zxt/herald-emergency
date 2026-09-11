@@ -131,20 +131,27 @@ function tick(nodes: GNode[], edges: GEdge[], width: number, height: number) {
   }
 }
 
-export function renderGraph(
+/** Build initial node positions and run the force-directed simulation once. */
+export function simulateGraph(data: GraphData, width: number, height: number): GNode[] {
+  const nodes = buildGraph(data);
+  for (let i = 0; i < 120; i++) {
+    tick(nodes, data.edges, width, height);
+  }
+  return nodes;
+}
+
+/**
+ * Draw an already-simulated layout. Does NOT re-run physics — call predictably
+ * (e.g. on data change, and re-apply cheaply on hover) so hover never re-simulates.
+ */
+export function renderLayout(
   ctx: CanvasRenderingContext2D,
-  data: GraphData,
+  nodes: GNode[],
+  edges: GEdge[],
   width: number,
   height: number,
   hover: string | null
 ) {
-  const nodes = buildGraph(data);
-
-  // Run simulation
-  for (let i = 0; i < 120; i++) {
-    tick(nodes, data.edges, width, height);
-  }
-
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const dpr = window.devicePixelRatio || 1;
 
@@ -154,7 +161,7 @@ export function renderGraph(
 
   // Draw edges
   ctx.lineWidth = 1.5;
-  for (const e of data.edges) {
+  for (const e of edges) {
     const s = nodeMap.get(e.source);
     const t = nodeMap.get(e.target);
     if (!s || !t) continue;
