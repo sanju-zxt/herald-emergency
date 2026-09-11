@@ -108,7 +108,6 @@ npm run test
 # Production build
 npm run build
 ```
-
 ## Deploy (Vercel)
 
 **Recommended — import the GitHub repo** (auto-deploys on every push):
